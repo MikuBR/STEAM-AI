@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import Login from './components/Login';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 
 export default function App() {
@@ -73,6 +74,11 @@ export default function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  const handleMockLogin = () => {
+    localStorage.setItem('steam_auth_token', 'mock_token');
+    checkAuth();
+  };
+
   const handleLogin = () => {
     const width = 600;
     const height = 700;
@@ -88,12 +94,12 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b1121] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#FAF6F0] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-[#CD853F] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  return user ? <Dashboard user={user} /> : <Login onLogin={handleLogin} />;
+  return <ErrorBoundary>{user ? <Dashboard user={user} /> : <Login onLogin={handleLogin} onMockLogin={handleMockLogin} />}</ErrorBoundary>;
 }
 

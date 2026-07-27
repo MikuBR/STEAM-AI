@@ -33,6 +33,14 @@ const checkAuth = (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
+    if (token === 'mock_token') {
+      req.user = {
+        id: "mock",
+        displayName: "Visitante (Mock)",
+        photos: [{ value: "https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg" }]
+      };
+      return next();
+    }
     const user = activeSessions.get(token);
     if (user) {
       req.user = user;
@@ -213,6 +221,17 @@ async function startServer() {
     const steamId = user.id;
     const apiKey = process.env.STEAM_API_KEY;
 
+    if (steamId === 'mock') {
+      return res.json({
+        game_count: 3,
+        games: [
+          { appid: 413150, name: "Stardew Valley", playtime_forever: 6000 },
+          { appid: 289070, name: "Civilization VI", playtime_forever: 12000 },
+          { appid: 1145360, name: "Hades", playtime_forever: 3000 }
+        ]
+      });
+    }
+
     try {
       const response = await axios.get(`http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/`, {
         params: {
@@ -234,6 +253,15 @@ async function startServer() {
     const user: any = req.user;
     const steamId = user.id;
     const apiKey = process.env.STEAM_API_KEY;
+
+    if (steamId === 'mock') {
+      return res.json({
+        total_count: 1,
+        games: [
+          { appid: 413150, name: "Stardew Valley", playtime_forever: 6000 }
+        ]
+      });
+    }
 
     try {
       const response = await axios.get(`http://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/`, {
@@ -279,7 +307,8 @@ async function startServer() {
       ` : '';
 
       const prompt = `
-        Analise o perfil deste jogador da Steam e recomende 5 novos jogos.
+        Você é um Barista Gamer muito carismático em uma cafeteria chamada "Steam Synapse". 
+        Sua especialidade é analisar o "paladar" de jogos do cliente e servir (recomendar) 5 novos grãos (jogos) incríveis.
         
         Jogos Possuídos (e tempo de jogo em minutos):
         ${ownedGames.map((g: any) => `- ${g.name}: ${g.playtime_forever}min`).join('\n')}
@@ -290,9 +319,10 @@ async function startServer() {
         
         Instruções:
         1. Recomende jogos que o usuário NÃO possui.
-        2. Baseie as recomendações nos gêneros e estilos dos jogos mais jogados E nas preferências fornecidas.
-        3. Explique por que cada jogo foi recomendado.
-        4. Retorne APENAS um JSON estruturado com os App IDs oficiais da Steam para cada jogo.
+        2. Baseie as recomendações nos gêneros e estilos dos jogos com mais tempo de jogo E nas preferências fornecidas.
+        3. No campo "reason", você DEVE agir como o barista: faça paralelos entre café, aromas e o jogo (ex: "Esse jogo tem uma torra escura de terror de sobrevivência, com notas de exploração. Vai te manter acordado de madrugada igual um espresso duplo!").
+        4. O campo "estimatedMatch" representa a porcentagem de "Sabor" que esse jogo tem em relação ao gosto do cliente.
+        5. Retorne APENAS um JSON estruturado com os App IDs oficiais da Steam para cada jogo.
       `;
 
       const generate = async (modelName: string) => {
@@ -313,9 +343,10 @@ async function startServer() {
                       appId: { type: Type.INTEGER, description: "Steam App ID for the game" },
                       reason: { type: Type.STRING },
                       genres: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      estimatedMatch: { type: Type.NUMBER, description: "0-100 percentage" }
+                      estimatedMatch: { type: Type.NUMBER, description: "0-100 percentage" },
+                      timeToBeat: { type: Type.NUMBER, description: "Estimated time to beat the main story in hours (like HowLongToBeat)" }
                     },
-                    required: ["name", "appId", "reason", "genres", "estimatedMatch"]
+                    required: ["name", "appId", "reason", "genres", "estimatedMatch", "timeToBeat"]
                   }
                 }
               },
@@ -358,7 +389,11 @@ async function startServer() {
         res.json(result);
       } catch (error: any) {
         console.error("Gemini Error:", error.message);
-        res.status(500).json({ error: "Ocorreu um erro ao gerar recomendações. Tente novamente mais tarde." });
+        if (error.status === 429 || error.message?.includes('429') || error.message?.includes('Quota')) {
+          res.status(429).json({ error: "O limite de uso da API corporativa do Gemini foi excedido. Por favor, acesse as configurações (ícone de engrenagem no menu) e insira sua própria chave de API do Gemini para continuar." });
+        } else {
+          res.status(500).json({ error: "Ocorreu um erro ao gerar recomendações. Tente novamente mais tarde." });
+        }
       }
     } catch (error: any) {
       console.error("Outer Error:", error.message);
@@ -403,9 +438,10 @@ async function startServer() {
                       appId: { type: Type.INTEGER, description: "Steam App ID for the game" },
                       reason: { type: Type.STRING },
                       genres: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      estimatedMatch: { type: Type.NUMBER, description: "0-100 percentage" }
+                      estimatedMatch: { type: Type.NUMBER, description: "0-100 percentage" },
+                      timeToBeat: { type: Type.NUMBER, description: "Estimated time to beat the main story in hours (like HowLongToBeat)" }
                     },
-                    required: ["name", "appId", "reason", "genres", "estimatedMatch"]
+                    required: ["name", "appId", "reason", "genres", "estimatedMatch", "timeToBeat"]
                   }
                 }
               },
@@ -448,11 +484,19 @@ async function startServer() {
         res.json(result);
       } catch (error: any) {
         console.error("Gemini Error:", error.message);
-        res.status(500).json({ error: "Ocorreu um erro ao gerar recomendações. Tente novamente mais tarde." });
+        if (error.status === 429 || error.message?.includes('429') || error.message?.includes('Quota')) {
+          res.status(429).json({ error: "O limite de uso da API corporativa do Gemini foi excedido. Por favor, acesse as configurações (ícone de engrenagem no menu) e insira sua própria chave de API do Gemini para continuar." });
+        } else {
+          res.status(500).json({ error: "Ocorreu um erro ao gerar recomendações. Tente novamente mais tarde." });
+        }
       }
     } catch (error: any) {
       console.error("Gemini Error:", error.message);
-      res.status(500).json({ error: "Ocorreu um erro ao gerar recomendações. Tente novamente mais tarde." });
+      if (error.status === 429 || error.message?.includes('429') || error.message?.includes('Quota')) {
+          res.status(429).json({ error: "O limite de uso da API corporativa do Gemini foi excedido. Por favor, acesse as configurações (ícone de engrenagem no menu) e insira sua própria chave de API do Gemini para continuar." });
+        } else {
+          res.status(500).json({ error: "Ocorreu um erro ao gerar recomendações. Tente novamente mais tarde." });
+        }
     }
   });
 
