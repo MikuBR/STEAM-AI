@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Steam Synapse — Recomendador de Jogos com IA</title>
+    <meta name="description" content="Steam Synapse usa IA (Google Gemini) para analisar seu perfil Steam e recomendar novos jogos baseados no seu histórico e reviews. Interface aconchegante temática de cafeteria." />
+    <meta name="keywords" content="steam, game recommender, IA, Gemini, jogos, recomendação, steam synapse" />
+    <meta property="og:title" content="Steam Synapse — Recomendador de Jogos com IA" />
+    <meta property="og:description" content="Seu barista gamer de IA para recomendar os melhores jogos na Steam." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#8B4513" />
+    <script>
+      // Workaround for browser/iframe environments where window.fetch is a read-only getter.
+      // This prevents errors when external tools, extensions, or diagnostic scripts try to override window.fetch.
+      (function() {
+        try {
+          const desc = Object.getOwnPropertyDescriptor(window, 'fetch') || Object.getOwnPropertyDescriptor(Object.getPrototypeOf(window), 'fetch');
+          if (desc && (!desc.writable || !desc.set)) {
+            let currentFetch = window.fetch;
+            Object.defineProperty(window, 'fetch', {
+              get() {
+                return currentFetch;
+              },
+              set(newFetch) {
+                currentFetch = newFetch;
+              },
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch (e) {
+          console.warn("Could not patch window.fetch getter:", e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
