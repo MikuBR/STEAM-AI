@@ -8,6 +8,7 @@ import Login from './components/Login';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import { STATIC_MODE } from './services/staticMode';
+import { apiFetch, apiPost } from './services/api';
 
 const MOCK_USER = {
   id: "mock",
@@ -30,14 +31,7 @@ export default function App() {
     }
 
     try {
-      const token = localStorage.getItem('steam_auth_token');
-      const headers: any = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/auth/user', { 
-        headers,
-        credentials: 'include' 
-      });
+      const res = await apiFetch('/api/auth/user');
       if (res.ok) {
         const data = await res.json();
         setUser(data);
@@ -61,12 +55,7 @@ export default function App() {
         if (event.data.token) {
           console.log("[App] Exchanging auth token...");
           try {
-            const exchangeRes = await fetch('/api/auth/exchange', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token: event.data.token }),
-              credentials: 'include'
-            });
+            const exchangeRes = await apiPost('/api/auth/exchange', { token: event.data.token });
             if (exchangeRes.ok) {
               const data = await exchangeRes.json();
               if (data.token) {

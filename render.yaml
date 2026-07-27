@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: steam-ai-backend
+    env: node
+    region: ohio
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/server.cjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: STEAM_API_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+
+  - type: static
+    name: steam-ai-frontend
+    env: static
+    buildCommand: npm ci && npm run build:static
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_STATIC
+        value: "true"
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: steam-ai-backend
+          property: url

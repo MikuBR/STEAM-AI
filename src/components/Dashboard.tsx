@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { STATIC_MODE } from '../services/staticMode';
 import { fetchRecommendations, fetchSimilarRecommendations } from '../services/geminiBrowser';
 import { searchSteamGames } from '../services/steamBrowser';
+import { apiFetch, apiPost } from '../services/api';
 import { 
   Sparkles, 
   Loader2, 
@@ -129,16 +130,7 @@ export default function Dashboard({ user }: { user: User }) {
   const saveManualGamesToServer = async (games: Game[]) => {
     if (STATIC_MODE) return;
     try {
-      const token = localStorage.getItem('steam_auth_token');
-      const headers: any = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      await fetch('/api/steam/manual-games', {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: JSON.stringify({ games })
-      });
+      await apiPost('/api/steam/manual-games', { games });
     } catch (err) {
       console.error("Failed to save manual games replica to server:", err);
     }
@@ -220,11 +212,7 @@ export default function Dashboard({ user }: { user: User }) {
     if (STATIC_MODE) return;
     async function fetchManualGames() {
       try {
-        const token = localStorage.getItem('steam_auth_token');
-        const headers: any = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const res = await fetch('/api/steam/manual-games', { headers, credentials: 'include' });
+        const res = await apiFetch('/api/steam/manual-games');
         if (res.ok) {
           const data = await res.json();
           const serverGames = data.games || [];
@@ -261,13 +249,9 @@ export default function Dashboard({ user }: { user: User }) {
         return;
       }
       try {
-        const token = localStorage.getItem('steam_auth_token');
-        const headers: any = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
         const [ownedRes, recentRes] = await Promise.all([
-          fetch('/api/steam/owned-games', { headers, credentials: 'include' }),
-          fetch('/api/steam/recent-games', { headers, credentials: 'include' })
+          apiFetch('/api/steam/owned-games'),
+          apiFetch('/api/steam/recent-games')
         ]);
         
         const ownedData = await ownedRes.json();
@@ -335,25 +319,16 @@ export default function Dashboard({ user }: { user: User }) {
         return;
       }
 
-      const token = localStorage.getItem('steam_auth_token');
-      const headers: any = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
       const combinedLibrary = [...manualGames, ...ownedGames];
 
-      const res = await fetch('/api/recommendations', {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: JSON.stringify({
-          ownedGames: combinedLibrary.slice(0, 50), 
-          recentGames: recentGames,
-          customGeminiKey: customApiKey || undefined,
-          preferences: {
-            moreOf: prefsMoreOf,
-            lessOf: prefsLessOf
-          }
-        })
+      const res = await apiPost('/api/recommendations', {
+        ownedGames: combinedLibrary.slice(0, 50), 
+        recentGames: recentGames,
+        customGeminiKey: customApiKey || undefined,
+        preferences: {
+          moreOf: prefsMoreOf,
+          lessOf: prefsLessOf
+        }
       });
       const data = await res.json();
       if (res.ok) {
@@ -402,7 +377,7 @@ export default function Dashboard({ user }: { user: User }) {
         setSearchResults(data || []);
         return;
       }
-      const res = await fetch(`/api/search-games?q=${encodeURIComponent(searchQuery)}`);
+      const res = await apiFetch(`/api/search-games?q=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
       setSearchResults(data || []);
     } catch (e) {
@@ -441,7 +416,7 @@ export default function Dashboard({ user }: { user: User }) {
         setManualSearchResults(data || []);
         return;
       }
-      const res = await fetch(`/api/search-games?q=${encodeURIComponent(manualSearchQuery)}`);
+      const res = await apiFetch(`/api/search-games?q=${encodeURIComponent(manualSearchQuery)}`);
       const data = await res.json();
       setManualSearchResults(data || []);
     } catch (e) {
